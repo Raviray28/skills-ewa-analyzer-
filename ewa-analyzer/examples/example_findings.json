@@ -1,0 +1,1814 @@
+{
+ "meta": {
+  "customer": "Example Customer",
+  "system_id": "ABC",
+  "product": "SAP S/4HANA 2021, Productive",
+  "landscape": "EXMP Landscape",
+  "landscape_short": "ABC — SAP S/4HANA 2021 + HANA",
+  "period": "12.10.2026 – 18.10.2026",
+  "period_short": "12 Oct – 18 Oct 2026",
+  "report_date": "19/10/2026",
+  "month_label": "October 2026",
+  "prepared_by": "Your Name, SAP Basis Consultant"
+ },
+ "overall": {
+  "label": "CRITICAL",
+  "score": 46,
+  "rating_text": "RED — Severe issues detected that may cause business impact",
+  "decisive_alert": "HANA-HDB: Severe issues for log backup/recovery operations; plus a critical HANA HotNews (SAP Note 3794443) for the current revision",
+  "rating_sub": "RED-rated EWA report"
+ },
+ "system_facts": [
+  [
+   "Product",
+   "SAP S/4HANA 2021 FPS02 (On-Premise)  |  SAP Kernel 793 PL400"
+  ],
+  [
+   "Database",
+   "SAP HANA 2.0 SPS08 Rev 089.03 (upgraded 11.10.2026; was Rev 082.00)"
+  ],
+  [
+   "Operating System",
+   "SUSE Linux Enterprise Server 15 SP7 on HANA host (was SP3); app servers SLES 15 (x86_64)"
+  ],
+  [
+   "Hyperscaler",
+   "Microsoft Azure"
+  ],
+  [
+   "Active Users (>400 steps/week)",
+   "1,201  |  Fiori Users: 1,275"
+  ],
+  [
+   "DB Size / Monthly Growth",
+   "959.80 GB  /  +41.27 GB per month"
+  ],
+  [
+   "Avg. Availability",
+   "100% for the week"
+  ]
+ ],
+ "top_actions": [
+  "1. Fix the recurring HANA log backup irregularity (81 vs ~769/day on 15.10, 1 failure on 17.10 — same Thu-low / Sat-failure pattern as Sept) and review HotNews 3794443 (partitioning duplicates) — SAP Notes 1642148, 3794443",
+  "2. HANA DATA volume is now 82.2% used (17.8% free, was 80.5%) — approve Azure disk expansion and run housekeeping (ARFCSDATA, BALDAT, APQD, SOFFCONT1 growth)",
+  "3. Reduce SAP_ALL (8 users, was 10), debug/replace (6, was 7) and broad table access (93) in client 800; define HANA audit policies in SYSTEMDB",
+  "4. S/4HANA 2021 mainstream maintenance ends 31.12.2026 (~2.4 months from report end) — management decision on upgrade roadmap/budget; SAPUI5 1.96 and Fiori FES 2021 end the same day",
+  "5. Triage 411 ABAP dumps (down from 486) — UNCAUGHT_EXCEPTION (169), TSV_TNEW_PAGE_ALLOC_FAILED (59), RAISE_SHORTDUMP (39) are the top causes",
+  "6. Work the interface backlog: 117,554 bgRFC inbound errors (59,113 backlog), 5,886 tRFC errors, 7,958 stale SMQ3 queues, failed/unprocessed EWM PPF actions"
+ ],
+ "action_items": [
+  {
+   "priority": "Critical",
+   "category": "HANA Backup",
+   "finding": "Irregular HANA log backup pattern + 1 failure",
+   "technical": "15.10.2026: only 81 successful log backups vs. 769/day on 16-18.10; 1 unsuccessful log backup on 17.10.2026 (2,388 successful / 1 failed in the window). HANA alert 65 (log backup runtime) fired 2,819x at priority 3. Same signature as the Sept report (79 on Thu 10.09, 1 failure on Sat 12.09): low count on the first Thursday and a failure on Saturday. Still the decisive red alert.",
+   "impact": "Recovery Point Objective at risk; a recurring pattern increases the data-loss window if a failure coincides with a disaster.",
+   "recommendation": "Compare Thursday/Saturday schedules (backup tool/Backint, housekeeping, maintenance windows); check the small local catalog/log backup volume (28.5 GB, 24.8% free); validate Backint health; alert on log backup failures via DBACOCKPIT; SAP Notes 1642148, 2081845.",
+   "owner": "Basis",
+   "status": "Open"
+  },
+  {
+   "priority": "Critical",
+   "category": "HANA HotNews",
+   "finding": "NEW: HANA HotNews 3794443 applies to the current revision 2.00.089.03",
+   "technical": "EWA HANA-HDB check \"SAP HANA Critical Revisions\" is RED. SAP Note 3794443: Standard Table Partitioning can introduce duplicate records or table inconsistencies. EWA parameter check also expects indexserver.ini [partitioning] mvcc_data_max_rows_per_chunk = 4294967295 (currently not set).",
+   "impact": "Potential duplicate records / inconsistent partitioned tables; second decisive red alert this cycle. Partitioned tables stay exposed until mitigated.",
+   "recommendation": "Read SAP Note 3794443 and apply its mitigation (parameter and/or revision) in a controlled change; then check partitioned tables for duplicates per the note.",
+   "owner": "Basis",
+   "status": "Open – New"
+  },
+  {
+   "priority": "Critical",
+   "category": "HANA Backup",
+   "finding": "Data backup frequency/operation not optimal",
+   "technical": "Only 1 data backup per day recorded (15-18.10.2026, all successful); rated non-optimal by the EWA algorithm (yellow).",
+   "impact": "Longer recovery time if a data backup is missed; increased reliance on log replay.",
+   "recommendation": "Confirm daily full data backup completes successfully; review DBACOCKPIT backup catalog and scheduling.",
+   "owner": "Basis",
+   "status": "Open"
+  },
+  {
+   "priority": "Critical",
+   "category": "HANA Memory",
+   "finding": "Indexserver memory usage close to effective allocation limit",
+   "technical": "Indexserver 688 GB of 956 GB effective allocation limit (72.0%, was 72.3%); tables 527 GB (Row 73 + Column 454) = 54.2% of the 973 GB global limit (guideline <50%). EWA observed a memory bottleneck in the previous week (heap peak 17.10.2026 18:00, RoDict 172.8 GB, LOB pages 64.3 GB).",
+   "impact": "Risk of table unloads or Out-of-Memory dumps impacting performance/availability if consumption keeps climbing.",
+   "recommendation": "Analyze top memory consumers (SAP Note 1999997); consider unloading/archiving unused column-store tables; review HANA sizing vs. current workload.",
+   "owner": "Basis",
+   "status": "Open"
+  },
+  {
+   "priority": "Critical",
+   "category": "Security",
+   "finding": "No customer-defined HANA audit policies enabled (HDB-SYSTEMDB)",
+   "technical": "0 custom audit policies in SYSTEMDB (EWA yellow). Note: the HDB tenant itself shows 33 activated audit policies and is rated green.",
+   "impact": "Inability to detect or forensically investigate unauthorized system-level (SYSTEMDB) access.",
+   "recommendation": "Define audit policies for privileged operations (DATA ADMIN, user/role changes) per HANA Security Guide; watch CS_AUDIT_LOG_ growth.",
+   "owner": "Basis",
+   "status": "Open"
+  },
+  {
+   "priority": "Critical",
+   "category": "Security",
+   "finding": "8 users hold SAP_ALL in production client 800 (improved from 10)",
+   "technical": "Client 800: 8 of 1,589 valid users (was 10 of 1,458). Client 000: 9 of 15 valid users (was 10 of 15). EWA rating RED for both.",
+   "impact": "Unrestricted access to all transactions/data — major segregation-of-duties and audit risk.",
+   "recommendation": "Review each remaining SAP_ALL assignment; replace with role-based access; limit to emergency-access (firefighter) process only.",
+   "owner": "Security",
+   "status": "Open"
+  },
+  {
+   "priority": "Critical",
+   "category": "Security",
+   "finding": "6 users authorized to Debug/Replace in production (client 800) (improved from 7)",
+   "technical": "S_DEVELOP ACTVT=02, OBJTYPE=DEBUG assigned to 6 production users (was 7); 1 user in client 000.",
+   "impact": "Debug-and-replace bypasses ABAP authorization checks and can alter data in-flight.",
+   "recommendation": "Restrict debug-replace to a controlled, logged emergency-access role; remove from standard production roles.",
+   "owner": "Security",
+   "status": "Open"
+  },
+  {
+   "priority": "Critical",
+   "category": "Security",
+   "finding": "93 users can display/change all tables via SE16/SM30 (client 800)",
+   "technical": "S_TABU_DIS with ACTVT 02/03 and DICBERCLS=* assigned to 93 of 1,589 users (unchanged vs. Sept: 93); 1 user in client 000. EWA rating RED.",
+   "impact": "High risk of unauthorized viewing or modification of sensitive business/config data.",
+   "recommendation": "Restrict table-maintenance authorizations to specific authorization groups per role; review SUIM usage before revoking.",
+   "owner": "Security",
+   "status": "Open"
+  },
+  {
+   "priority": "Critical",
+   "category": "Maintenance",
+   "finding": "Mainstream maintenance for SAP S/4HANA 2021 ends 31.12.2026",
+   "technical": "EWA rated RED — maintenance expires in about 2.4 months from the report end (74 days; was ~3.5 months in Sept).",
+   "impact": "Loss of SAP standard support and Security Notes coverage after expiry; compliance exposure.",
+   "recommendation": "Escalate to management immediately; finalize the upgrade project timeline/budget for a supported S/4HANA release.",
+   "owner": "ODM",
+   "status": "Open"
+  },
+  {
+   "priority": "Critical",
+   "category": "Maintenance",
+   "finding": "Support Package level outside SAP Security Note coverage window",
+   "technical": "S4CORE/SAP_ABA/SAP_BASIS/SAP_GWFND last imported 22.04.2023 (43 months ago, was 41); final assembly dates 50-56 months old. S4CORE 106 is on SP02 vs. latest SP10 (8 SPs behind).",
+   "impact": "System is not guaranteed High/Very-High priority Security Notes — elevated vulnerability exposure, and the gap keeps growing.",
+   "recommendation": "Schedule a Support Package Stack upgrade for S4CORE 106 (SP02 → latest) — ideally as part of the S/4HANA upgrade project.",
+   "owner": "Basis",
+   "status": "Open"
+  },
+  {
+   "priority": "Critical",
+   "category": "Maintenance",
+   "finding": "SAPUI5 1.96 patch 25 and Fiori FES 2021 reach end of maintenance 31.12.2026",
+   "technical": "SAPUI5 1.96 patch level 25 is past End of Cloud Provisioning (31.12.2024); EoM 31.12.2026 is ~2.4 months away. SAP Fiori FES 2021 for S/4HANA (SAP_UI 756) also ends 31.12.2026.",
+   "impact": "Bug fixes and security patches for the UI layer are no longer guaranteed.",
+   "recommendation": "Apply the latest SAPUI5 1.96 patch via Maintenance Planner (SAP Note 2217489) and plan the front-end server upgrade with the S/4HANA roadmap.",
+   "owner": "ODM",
+   "status": "Open"
+  },
+  {
+   "priority": "High",
+   "category": "HANA Disk Capacity",
+   "finding": "DATA volume at 82.2% utilization (above 80%)",
+   "technical": "exmp-hdb-p1 DATA: 1,343.43 GB total, 1,103.68 GB used, 239.75 GB free (17.8% free; was 19.5%). Used data grew 22.7 GB in 5 weeks (~20 GB/month); at that rate the 90% line (~1,209 GB) is ~5 months away. EWA DB-size growth metric is higher (+41.27 GB/month).",
+   "impact": "Above SAP's 80% capacity guideline; the database suspends if the data volume fills.",
+   "recommendation": "Plan Azure disk expansion now; housekeeping on ARFCSDATA/BALDAT/APQD; review SOFFCONT1 (LOB, 239.9 GB) retention.",
+   "owner": "Basis / Infra (Azure)",
+   "status": "Open"
+  },
+  {
+   "priority": "High",
+   "category": "HANA Replication",
+   "finding": "System replication connection closed (3x, priority 4)",
+   "technical": "Alert ID 78 — connection between primary (SITE1 exmp-hdb-p1) and a secondary (SITE2 SYNC / SITE3 exmp-hdb-q3 ASYNC) closed 3 times (was 1).",
+   "impact": "Secondary may stop receiving replicated data, risking an RPO gap and weakening failover readiness.",
+   "recommendation": "Investigate network/replication interruptions; confirm both replication targets are ACTIVE and in sync.",
+   "owner": "Basis",
+   "status": "Open"
+  },
+  {
+   "priority": "High",
+   "category": "ABAP Dumps",
+   "finding": "411 ABAP dumps recorded (12-19.10.2026) — down from 486",
+   "technical": "Top contributors: UNCAUGHT_EXCEPTION (169), TSV_TNEW_PAGE_ALLOC_FAILED (59), RAISE_SHORTDUMP (39), SESSIONMEM_QUOTA_WARNING (27), RAISE_EXCEPTION (20), SAPSQL_DATA_LOSS (18), CALL_FUNCTION_SEND_ERROR (15). Daily peak 96 on 13.10. SYSTEM_SHM_AREA_DETACHED fell from 37 to 1.",
+   "impact": "Still ~8x the <50 guideline; may cause failed background jobs and end-user errors.",
+   "recommendation": "Triage top dump types via ST22; root-cause UNCAUGHT_EXCEPTION and memory dumps; raise SAP incidents where code-level issues are found.",
+   "owner": "Basis / ABAP Dev",
+   "status": "Open"
+  },
+  {
+   "priority": "High",
+   "category": "RFC / qRFC",
+   "finding": "qRFC outbound queues in CPICERR/SYSFAIL status",
+   "technical": "12 queues (34 entries) in error: 2 CPICERR (RFC connection open) and 10 SYSFAIL (name/password incorrect). Oldest from 27.07.2023 (PRABCCLNT800...), others 2024-2025 — unresolved for 3+ years.",
+   "impact": "Interfaces (deliveries, WMQFV/WMQFC) not processing — potential lost or delayed business transactions.",
+   "recommendation": "Correct RFC destination credentials/connectivity per SAP Note 378903; reprocess or clear stale queues; daily SMQ1 monitoring.",
+   "owner": "Functional",
+   "status": "Open"
+  },
+  {
+   "priority": "High",
+   "category": "RFC / qRFC",
+   "finding": "qRFC unprocessed outbound queues in READY status since 2023",
+   "technical": "29 queues (158 entries) listed in READY status, mostly PRABCCLNT800... first entry 27.07.2023.",
+   "impact": "Stale, unresolved outbound queue entries indicate long-standing unresolved interface issues.",
+   "recommendation": "Analyze root cause per queue with business/interface owners; clear or reprocess after correction.",
+   "owner": "Functional",
+   "status": "Open"
+  },
+  {
+   "priority": "High",
+   "category": "RFC / qRFC",
+   "finding": "qRFC inbound queues in SYSFAIL status",
+   "technical": "25 queues (76 entries) listed; errors include user locked, serial-number/status mismatches, quantity mismatch, \"warehouse request exists\". Entries span 2020-2026 and new ones were added 13-16.10.2026.",
+   "impact": "Inbound EWM/delivery confirmations failing to post — potential inventory/financial discrepancies.",
+   "recommendation": "Work with business teams to fix master data/authorization causes; reprocess via SMQ2.",
+   "owner": "Functional",
+   "status": "Open"
+  },
+  {
+   "priority": "High",
+   "category": "RFC / bgRFC / IDoc",
+   "finding": "NEW: large bgRFC, tRFC, IDoc and batch-input error volumes (cross-application BPA)",
+   "technical": "bgRFC inbound: 117,554 errors / 59,113 backlog; tRFC outbound: 5,886 errors and backlog; inbound IDocs in error: 3,464; batch input sessions: 947 in error, 1,129 in backlog; workflows in error: 135. All rated RED/YELLOW by EWA.",
+   "impact": "Silent processing backlog across interfaces; potential lost or delayed documents and growing tRFC/bgRFC tables (ARFCSDATA).",
+   "recommendation": "Analyze via SBGRFCMON, SM58, WE02/BD87, SM35 and SWI2_FREQ; identify top failing destinations/message types; reprocess or purge per business sign-off.",
+   "owner": "Basis / Functiponal",
+   "status": "Open – New"
+  },
+  {
+   "priority": "High",
+   "category": "EWM",
+   "finding": "7,958 EWM queues older than 365 days saved in SMQ3",
+   "technical": "Oldest entries date back to 2020; count up from 7,839 in Sept.",
+   "impact": "Long-term unresolved queue backlog consumes DB space and obscures genuinely new issues.",
+   "recommendation": "Evaluate business relevance per SAP Note 2558561; restore relevant queues to SMQ2 and reprocess, delete irrelevant ones.",
+   "owner": "EWM",
+   "status": "Open"
+  },
+  {
+   "priority": "High",
+   "category": "EWM",
+   "finding": "Unprocessed PPF actions older than 2 weeks (ZX_DELIVERYNOTE)",
+   "technical": "50 /SCDL/DELIVERY PPF actions with status 0 (not processed) listed, created 20.08-01.10.2026 (profile /SCWM/FDO_01).",
+   "impact": "Delivery note output/communication may not be reaching customers/carriers on time.",
+   "recommendation": "Review via SPPFP; clear stuck 'Processes at' selections; deactivate unused action definitions per Note 1423066.",
+   "owner": "EWM",
+   "status": "Open"
+  },
+  {
+   "priority": "High",
+   "category": "EWM",
+   "finding": "Failed PPF actions older than 2 weeks (status 2 — error) — EWA rating RED",
+   "technical": "50 failed actions listed (20.08-02.10.2026): ZSCWM/REPACK_HU_PRINT 17, ZPRINT_HU_PARTIAL_UD 15, ZHU_LABEL_AUTO 6, ZPRINT_PICK_HU_STO_OUT 4, Z_AUTO_GR_INB 3, ZPRINT_PICK_HU 3, ZSCWM/MSG_PRD_SEND 2.",
+   "impact": "Warehouse label/print and messaging processes silently failing — potential operational disruption on the warehouse floor.",
+   "recommendation": "Analyze error logs via SPPFP per action profile; correct root cause (print server/config) and reprocess.",
+   "owner": "EWM",
+   "status": "Open"
+  },
+  {
+   "priority": "High",
+   "category": "EWM",
+   "finding": "EWM system 8 support packages behind latest SP",
+   "technical": "S4CORE 106 installed SP02; latest available SP10.",
+   "impact": "Missing bug fixes and side-effect corrections relevant to warehouse operations.",
+   "recommendation": "Plan an EWM/S4CORE support package upgrade in the next maintenance window (SAP Note 432027).",
+   "owner": "Basis",
+   "status": "Open"
+  },
+  {
+   "priority": "High",
+   "category": "EWM",
+   "finding": "Missing SAP Notes for delivery / warehouse-order inconsistencies",
+   "technical": "6 delivery notes not downloaded (3300534, 3311529, 3321269, 3157937, 3153491, 3233459) plus 1 warehouse-order note 3558727 (enqueue-lock loss / update termination) and 1 missing side-effect note 3249535.",
+   "impact": "Increases risk of document-flow and warehouse-order inconsistencies going undetected.",
+   "recommendation": "Download and implement via SNOTE, prioritizing those affecting active business processes (note: SP02 of S4CORE 106 does not include them).",
+   "owner": "Basis / ABAP Dev",
+   "status": "Open"
+  },
+  {
+   "priority": "High",
+   "category": "Master Data / MM",
+   "finding": "Period integrity inconsistency in table MSKA (client 800)",
+   "technical": "Fiscal Year/Period fields (LFGJA/LFMON) at initial value '0000/00' for at least one MSKA record — unresolved since last period.",
+   "impact": "Can cause migration/posting errors and inaccurate stock valuation reporting.",
+   "recommendation": "Run report MMIM_S4SIC_CHECKS (Note 3268840, prereq 3212869) to identify and correct affected records.",
+   "owner": "MM Functional / Basis",
+   "status": "Open"
+  },
+  {
+   "priority": "High",
+   "category": "Number Ranges",
+   "finding": "Number range RK_BELEG (CO Document) at 81.14% used",
+   "technical": "18,863,400 numbers remaining of 100,000,000; ~356,700/week (was 395,600) — non-rolling; was 79.30% in Sept. Linear estimate: 95% warning level in ~39 weeks (mid-2027), exhaustion in ~53 weeks.",
+   "impact": "If exhausted, CO document postings fail with hard errors, halting controlling processes.",
+   "recommendation": "Monitor via SNRO; plan interval extension well before the 95% warning threshold.",
+   "owner": "Basis / FI-CO",
+   "status": "Open"
+  },
+  {
+   "priority": "High",
+   "category": "Transport Management",
+   "finding": "157 overtaker/bypassed transport requests in the last week",
+   "technical": "Sequence errors where an older object version overwrote a newer one; 160 in Sept. Total production transports in the week: 10 (0 import errors, 0 created in production).",
+   "impact": "Risk of regressions being silently reintroduced into production.",
+   "recommendation": "Review transport sequencing practices with development teams; audit flagged sequence errors for actual impact.",
+   "owner": "Basis / Change Mgmt",
+   "status": "Open"
+  },
+  {
+   "priority": "High",
+   "category": "Database Housekeeping",
+   "finding": "Large tables requiring reorganization: ARFCSDATA (48.4 GB), BALDAT (39.3 GB), APQD (13.1 GB)",
+   "technical": "Flagged by the EWA table-reorg check; ARFCSDATA was 46.8 GB and BALDAT 36.3 GB in Sept; APQD (batch input queue data, 23.7M records) is newly listed.",
+   "impact": "Continued uncontrolled growth increases backup time, memory footprint and log volume pressure.",
+   "recommendation": "Housekeeping per SAP Notes 375566 (ARFCSDATA), 195157 (BALDAT), 36781/18307 (APQD — clean up old batch input sessions).",
+   "owner": "Basis",
+   "status": "Open"
+  },
+  {
+   "priority": "High",
+   "category": "HANA Growth",
+   "finding": "SOFFCONT1 (content repository LOB) grew 31.6 GB since Sept",
+   "technical": "SOFFCONT1 disk size 239.9 GB (was 208.3 GB) — roughly two thirds of the +48.8 GB total DB-size increase between the two analyses (910.97 → 959.80 GB). SRMCONT_MN (66.8 GB disk) and REPOLOAD (33.3 GB) are also large.",
+   "impact": "Main driver of DATA volume growth; accelerates the disk-capacity risk.",
+   "recommendation": "Review office/attachment retention and archiving; check what is writing to SOFFCONT1 (SAPoffice/send-to-user, attachments).",
+   "owner": "Basis / Functional",
+   "status": "Open – New"
+  },
+  {
+   "priority": "High",
+   "category": "Maintenance",
+   "finding": "Add-on SAP ECTR 1.1 for S/4HANA past end of mainstream maintenance",
+   "technical": "EWA add-on table: SAP ECTR 1.1 FOR SAP S/4HANA — mainstream maintenance ended 31.12.2025 (rated RED); SAP Fiori FES 2021 and SAP Fiori for S/4HANA 2021 end 31.12.2026 (yellow).",
+   "impact": "No SAP fixes for the add-on; blocks a clean S/4HANA upgrade path if not addressed.",
+   "recommendation": "Confirm ECTR usage and plan its upgrade/replacement (Engineering Control Center) within the upgrade roadmap.",
+   "owner": "Basis / Project Mgmt",
+   "status": "Open – New"
+  },
+  {
+   "priority": "Medium",
+   "category": "HANA Stability",
+   "finding": "Delta merge failures (52x, priority 3) — improved from 91x",
+   "technical": "Alert ID 88 — M_DELTA_MERGE_STATISTICS shows failed delta merges on column-store tables; 52 occurrences (Sept: 91).",
+   "impact": "Degraded read performance and increased memory pressure from unmerged delta storage.",
+   "recommendation": "Review delta merge failures in the Indexserver trace; investigate affected tables; manual merge if automatic merge keeps failing.",
+   "owner": "HANA DBA",
+   "status": "Open"
+  },
+  {
+   "priority": "Medium",
+   "category": "HANA Stability",
+   "finding": "Admission control queueing (2x, priority 4) — improved from 4x",
+   "technical": "M_ADMISSION_CONTROL_EVENTS: QUEUE events on 13-16.10 with max wait up to 12.15 s (e.g. 187 requests on 15.10 02:00).",
+   "impact": "Possible periodic contention/performance bottlenecks under peak load.",
+   "recommendation": "Investigate hours with the highest queueing for CPU-intensive requests; review parallel_merge_threads (workload parameter flagged).",
+   "owner": "HANA DBA",
+   "status": "Open"
+  },
+  {
+   "priority": "Medium",
+   "category": "HANA Stability",
+   "finding": "Deadlocks detected (9x, priority 3)",
+   "technical": "Alert ID 149 — transactions automatically rolled back; 9 occurrences (7 in Sept, 3 before). Also 3 ABAP DBSQL_SQL_DEADLOCK_DETECTED dumps.",
+   "impact": "Possible contention under peak load; failed postings may need rework.",
+   "recommendation": "Review deadlock traces (Note 1858357) for recurring patterns; correlate with the ABAP dumps.",
+   "owner": "HANA DBA",
+   "status": "Open"
+  },
+  {
+   "priority": "Medium",
+   "category": "HANA Stability",
+   "finding": "Trusted certificates expiring soon (7x, priority 3)",
+   "technical": "HANA alert ID 129 — certificates nearing/at expiry in the trust store.",
+   "impact": "Certificate expiry can break system replication or secure internal communication unexpectedly.",
+   "recommendation": "Identify and renew expiring certificates; cross-reference with the EXMP certificate tracker.",
+   "owner": "Basis / Security",
+   "status": "Open"
+  },
+  {
+   "priority": "Medium",
+   "category": "HANA Stability",
+   "finding": "Technical user password expiry (alert 62, 7x in SYSTEMDB) and SLD data supplier (alert 135, 175x)",
+   "technical": "SYSTEMDB alerts: ID 62 (7x, priority 3) and ID 135 — SAP HANA SLD Data Supplier configuration (175x, priority 3, new). Alert 62 is no longer raised for the HDB tenant.",
+   "impact": "Password expiry on technical users can lock accounts and halt interfaces; SLD supplier gap only affects landscape reporting.",
+   "recommendation": "Disable password lifetime for confirmed technical users (Note 2082406); configure or disable the SLD data supplier as documented.",
+   "owner": "Basis / HANA DBA",
+   "status": "Open – New"
+  },
+  {
+   "priority": "Medium",
+   "category": "HANA Consistency",
+   "finding": "Only lightweight/statistics-server consistency check scheduled; 45,406 tables not verified",
+   "technical": "No full CHECK_TABLE_CONSISTENCY run recorded; 0 table-level checks; statistics server checks ran 9 hours before the report.",
+   "impact": "Undetected data corruption could persist unnoticed — relevant given HotNews 3794443.",
+   "recommendation": "Schedule a full/global consistency check in a low-load window per SAP Note 2116157.",
+   "owner": "HANA DBA",
+   "status": "Open"
+  },
+  {
+   "priority": "Medium",
+   "category": "HANA Configuration",
+   "finding": "NEW: 28 HANA parameters not set as recommended (+ 1 workload parameter)",
+   "technical": "Parameter check yellow for HDB and SYSTEMDB: e.g. tcp_backlog, gc_unused_memory_threshold_abs/rel, min_segment_size, suspended_cursor_lifetime (720 vs 1,440-14,400), smart_merge_decision_func; workload: parallel_merge_threads 0 (recommended 5-10).",
+   "impact": "Sub-optimal memory management and merge behaviour after the 2.00.089 upgrade; some defaults should be restored.",
+   "recommendation": "Review the list against Note 2600030, restore defaults where recommended and set recommended values in a change window.",
+   "owner": "HANA DBA",
+   "status": "Open – New"
+  },
+  {
+   "priority": "Medium",
+   "category": "Data Quality",
+   "finding": "Service data quality gap — hardware utilization data missing",
+   "technical": "exmp-hdb-p1 shows no performance data and exmp-app-abc shows OS not detected; hardware capacity checks run only on exmp-app-p3/p4 (CPU max 19% / 13%).",
+   "impact": "Some EWA hardware capacity checks cannot run, reducing report accuracy.",
+   "recommendation": "Verify SAPOSCOL/collector configuration on the affected hosts per SAP Note 1309499; re-check next EWA cycle.",
+   "owner": "Basis",
+   "status": "Open"
+  },
+  {
+   "priority": "Medium",
+   "category": "Security",
+   "finding": "NEW: default passwords of standard users and TMSADM in a client other than 000",
+   "technical": "EWA yellow: standard users have default passwords; alert \"TMSADM exists in another client than 000\".",
+   "impact": "Well-known credentials on standard users are an easy entry point.",
+   "recommendation": "Run RSUSR003; change SAP*, SAPCPIC, TMSADM passwords (Notes 1749142, 1414256); remove TMSADM outside client 000.",
+   "owner": "Security / Basis",
+   "status": "Open – New"
+  },
+  {
+   "priority": "Medium",
+   "category": "Upgrade Planning",
+   "finding": "NEW: obsolete/deprecated applications in use",
+   "technical": "EWA RED: 9 obsolete/deprecated apps in use — VD03 (obsolete, 49 uses L1M), LSMW (deprecated, 3,493), SM19/SM20 (37 each), MK03 (505), F2030 (26,482), /AIF/IFMON, UKM_BP, UKM_MALUS_DSP — plus 8 apps with successors or future obsolescence (e.g. F1708 64,111 uses, F3719 My Queries 2.8M uses).",
+   "impact": "Usage must be remediated before or during the S/4HANA upgrade; deprecated tools are not maintained.",
+   "recommendation": "Map each app to its successor (BP, RSAU_CONFIG/RSAU_ADMIN, F3473, ...) and include in upgrade scope and training.",
+   "owner": "ODM",
+   "status": "Open – New"
+  },
+  {
+   "priority": "Medium",
+   "category": "Upgrade Planning",
+   "finding": "NEW: Silent Data Migration — new rows added after migration finished",
+   "technical": "Client 800: CL_CO_ESH_LONGTEXT_MAPPING_V2 (PP-SFC) 270 new rows; CL_SDM_QM_STXH (QM) 1 new row in 4 entries. Initial-status SDM classes: none.",
+   "impact": "Unmigrated data in old data model can cause unpredictable business-process results.",
+   "recommendation": "Find the writer (custom code/load tools), re-trigger SDMI per SAP Note 2907976 section 30 and KBA 3445802; check SDM_MON.",
+   "owner": "Basis",
+   "status": "Open – New"
+  },
+  {
+   "priority": "Medium",
+   "category": "Side-effect Notes",
+   "finding": "NEW: SAP Notes solving side effects missing (PP/PM, FI&AC, EWM)",
+   "technical": "PP/PM: 12 solving notes missing (5 High, 5 Medium, 2 Low; e.g. 3383084, 3380326, 3331313, 3299444, 3317377); FI&AC: 3 distinct notes (3224196, 3282474, 3718597); EWM: 3249535. All \"not downloaded — SP2 of S4CORE 106 does not include this Note\".",
+   "impact": "Known side effects of already implemented notes (MRP/MD01N, asset BCF, intercompany reconciliation) remain unfixed.",
+   "recommendation": "Implement via SNOTE after test; the SP stack upgrade resolves most of them.",
+   "owner": "EWM Functional",
+   "status": "Open – New"
+  },
+  {
+   "priority": "Medium",
+   "category": "EWM",
+   "finding": "NEW: tiny leftover quantities (<0.001) in 7 storage bins",
+   "technical": "Warehouses VNS1 (6 bins) and MYS1 (1 bin); shown as 0.000 in the UI but block put-away because bins are not considered empty.",
+   "impact": "Put-away on affected bins can be blocked.",
+   "recommendation": "Remove via the EWM Check Monitor per SAP Note 3138922 (/SCMW/CHM_LOG → Rounding Residual Quantity).",
+   "owner": "EWM Functional",
+   "status": "Open – New"
+  },
+  {
+   "priority": "Medium",
+   "category": "Business Process",
+   "finding": "Elevated business document backlog across O2C / P2P / Finance / PP",
+   "technical": "Notable: 71,774 blocked vendor invoice items, 35,149 failed cost postings, 252,072 production orders without deletion flag, 4,549 overdue customer payments, 3,228 overdue outbound deliveries — values identical to the Sept report (BPA collection every 3 months, data date 12.10.2026).",
+   "impact": "Backlogs can mask process/master-data issues and affect working capital, on-time delivery and closing efficiency.",
+   "recommendation": "Share findings with the respective process owners (FI, SD, MM, PP) for root-cause triage.",
+   "owner": "Functional",
+   "status": "Open"
+  },
+  {
+   "priority": "Medium",
+   "category": "EWM Housekeeping",
+   "finding": "EWM recommended background jobs not scheduled (12 jobs)",
+   "technical": "e.g. /LIME/COLLECTION_DELETE, /SCWM/R_REORG_HU_WO_PRINT, /SCWM/PI_PERS_PPF_DEL, RSPPF_SWJCLEAN, RBDMANI2 — unchanged.",
+   "impact": "Gradual accumulation of obsolete EWM data impacting performance over time.",
+   "recommendation": "Schedule the missing recommended housekeeping jobs per the EWM Operations Guide (Note 3418083).",
+   "owner": "EWM Functional",
+   "status": "Open"
+  },
+  {
+   "priority": "Medium",
+   "category": "EWM Archiving",
+   "finding": "No archiving set up for 23 recommended EWM objects",
+   "technical": "0% of recommended EWM archiving objects configured (DLV_INB, DLV_OUT, WME_HU, WME_TO, ...) — unchanged.",
+   "impact": "Long-term database growth and potential future performance degradation.",
+   "recommendation": "Define and pilot archiving for high-volume EWM objects, starting with a residence-time review in SPRO.",
+   "owner": "EWM",
+   "status": "Open"
+  },
+  {
+   "priority": "Medium",
+   "category": "Gateway / Fiori",
+   "finding": "NEW: gateway errors, unscheduled periodic jobs and unused ICF services",
+   "technical": "Gateway error log 1,118-2,579 errors/day (top: /IWFND/CM_CONSUMER 101 PAGE_BUILDER_CUST 7,581x); jobs /UI2/PERS_EXPIRED_DELETE and /UIF/CLEAN_LREP not scheduled; 1,404 activated ICF services unusable (EWA: 25.4% usable); Design Studio apps in use.",
+   "impact": "Noise hides real errors; unused active ICF services are a security exposure; unscheduled cleanup jobs allow table growth.",
+   "recommendation": "Analyze /IWFND/ERROR_LOG (Note 3013836); schedule the two jobs; deactivate unused ICF services (KBA 3261151); replace Design Studio apps (Note 3081996).",
+   "owner": "Basis / Fiori",
+   "status": "Open – New"
+  },
+  {
+   "priority": "Medium",
+   "category": "Performance",
+   "finding": "NEW: long-running custom programs and enterprise-search daemon",
+   "technical": "ZPP_UPDATE_STARTEND (HTTPS) 541 steps at 119.5 s avg; RFC PDATE_STARTEND_ZMTS_UPLOAD_DATES 334 s avg; batch ESH_EX_FU_DEMON = 10.3% of batch response time and 17.8% of batch DB time. Overall performance rated green (avg dialog 387 ms).",
+   "impact": "Not user-visible today but heavy resource consumers that add to HANA memory/CPU load.",
+   "recommendation": "Review SQL/ABAP of the custom programs (ST05/SAT); review ESH index schedule and scope.",
+   "owner": "ABAP Dev / Basis",
+   "status": "Open – New"
+  },
+  {
+   "priority": "Medium",
+   "category": "Number Range Trace",
+   "finding": "Residual number range trace records (client 800)",
+   "technical": "Orphaned trace records for RF_BELEG (SG12) and RV_BELEG, small volumes (remark 3) — recurring, unchanged.",
+   "impact": "Minimal performance impact but unmanaged technical debt.",
+   "recommendation": "Confirm traces are inactive; delete residual records via NK_DISPLAY_TRACE / NK_SET_SYSLOG_PARMS.",
+   "owner": "Functional",
+   "status": "Open"
+  },
+  {
+   "priority": "Low",
+   "category": "HANA Features",
+   "finding": "NEW: deprecated HANA repository API used",
+   "technical": "Component REPOSITORY / API used 2 times (last 19.10.2026 01:22) — typical for HANA Studio or report RDDHANAD.",
+   "impact": "Deprecated feature; will break with future HANA versions.",
+   "recommendation": "Administer via SAP HANA Cockpit (Note 2800006); see Note 2425002.",
+   "owner": "Functional",
+   "status": "Open – New"
+  },
+  {
+   "priority": "Low",
+   "category": "Strategic / ALM",
+   "finding": "SAP Solution Manager mainstream maintenance ends 2027; migration to SAP Cloud ALM recommended",
+   "technical": "EWA data still routed via Solution Manager 7.2 (ST-PI 740/35); EWA recommends direct transfer and completing the Cloud ALM transition before 2028 — unchanged guidance.",
+   "impact": "No immediate risk, but a multi-year transition needs early planning.",
+   "recommendation": "Run SAP Readiness Check for Cloud ALM; build a transition roadmap over 12-18 months; plan direct EWA transfer by Q3 2027 (Notes 207223, 3612479).",
+   "owner": "ODM",
+   "status": "Open"
+  }
+ ],
+ "risk_areas": {
+  "Critical": "HANA backup irregularity + HotNews 3794443, HANA memory pressure, security exposure (SAP_ALL / debug / audit), maintenance expiry",
+  "High": "HANA DATA volume >80%, ABAP dumps, EWM queues/PPF backlog, RFC/bgRFC failures, number range, replication, transport sequencing, housekeeping",
+  "Medium": "HANA stability alerts, consistency checks, patch/side-effect notes, SDM new rows, obsolete apps, data quality, business process backlog",
+  "Low": "Housekeeping, trace cleanup, deprecated HANA features, ALM roadmap planning"
+ },
+ "detail_sheets": [
+  {
+   "name": "HANA Deep Dive",
+   "title": "SAP HANA Database (HDB) — Technical Detail",
+   "columns": [
+    "Metric",
+    "Value",
+    "Threshold / Note"
+   ],
+   "widths": [
+    42.0,
+    52.0,
+    55.0
+   ],
+   "rows": [
+    [
+     "HANA Version (HDB)",
+     "2.00.089.03 (SPS 08), build fa/hana2sp08",
+     "SAP Note 2378962 — upgraded 11.10.2026 21:03 (was 2.00.082.00); In maintenance: yes"
+    ],
+    [
+     "HANA Host",
+     "exmp-hdb-p1 (Azure VM, 32 cores / 64 threads / 1,007.9 GB RAM)",
+     "Allocation Limit 972.9 GB; SLES 15 SP7 (was SP3)"
+    ],
+    [
+     "Memory usage of SAP HANA",
+     "693 GB",
+     "Global allocation limit: 973 GB (was 703 GB)"
+    ],
+    [
+     "Row store size",
+     "73 GB",
+     "Keep row store optimized per Note 2388483 (was 71 GB)"
+    ],
+    [
+     "Column store size in main memory",
+     "454 GB",
+     "Was 457 GB"
+    ],
+    [
+     "Indexserver memory usage",
+     "688 GB",
+     "Effective allocation limit: 956 GB (72.0%) — CRITICAL; was 675 of 934 GB (72.3%)"
+    ],
+    [
+     "Memory allocation of tables vs global limit",
+     "54.2% of global allocation limit (527 of 973 GB)",
+     "Recommended to stay <50%; 70%+ risks working-memory shortage"
+    ],
+    [
+     "LOG volume free space",
+     "479.53 GB free of 749.63 GB (64.0% free)",
+     "Healthy, but used space rose from ~72 GB (9.6%) to 270.1 GB (36.0%) since Sept; EWA reports no log-segment issue"
+    ],
+    [
+     "TRACE/ROOTKEY_BACKUP volume free space",
+     "971.62 GB free of 999.51 GB (97.2% free)",
+     "Healthy"
+    ],
+    [
+     "Catalog/Data/Log BACKUP volume",
+     "7.06 GB free of 28.48 GB (24.8% free)",
+     "Small local backup volume — check against log backup irregularities / Backint usage"
+    ],
+    [
+     "DATA volume free space",
+     "239.75 GB free of 1,343.43 GB (17.8% free / 82.2% used)",
+     "WARNING — above the 80% guideline; was 19.5% free (80.5% used); used data +22.7 GB in 5 weeks"
+    ],
+    [
+     "Log Backups (15-18 Oct)",
+     "2,388 successful / 1 unsuccessful",
+     "15.10: 81 (low), 16-18.10: 769/day, 1 failure on 17.10; alert 65 raised 2,819x (priority 3) — decisive red alert"
+    ],
+    [
+     "Data Backups (15-18 Oct)",
+     "4 successful / 0 unsuccessful",
+     "Frequency rated non-optimal by EWA (only 1x/day)"
+    ],
+    [
+     "Global Consistency Check",
+     "0 full runs; 45,406 tables not verified",
+     "Only lightweight/statistics-server check active — Note 2116157 (was 45,393)"
+    ],
+    [
+     "SAP HANA Dumps / Restarts",
+     "2 dump files (0 MB) in the weekly diagnosis files; no critical service restarts",
+     "HANA was restarted for the revision upgrade on 11.10.2026 (before the window); diagnosis files uncritical (124 files, 2.4 GB)"
+    ],
+    [
+     "Delta Merge Failures",
+     "52 occurrences, priority 3 (Medium)",
+     "Check M_DELTA_MERGE_STATISTICS and Indexserver trace — down from 91"
+    ],
+    [
+     "Deadlocks",
+     "9 occurrences, priority 3 (Medium)",
+     "SAP Note 1858357 — up from 7"
+    ],
+    [
+     "Admission Control Queueing",
+     "2 occurrences, priority 4 (High)",
+     "Check M_ADMISSION_CONTROL_EVENTS — down from 4; max queue wait 12.15 s"
+    ],
+    [
+     "Trusted Certificates Expiring",
+     "7 occurrences, priority 3 (Medium)",
+     "Renew proactively; cross-check EXMP cert tracker"
+    ],
+    [
+     "Replication Connection Closed",
+     "3 occurrences, priority 4 (High)",
+     "Investigate network/replication interruption — up from 1"
+    ],
+    [
+     "Log backup runtime (alert 65)",
+     "2,819 occurrences, priority 3",
+     "NEW — SAP Note 2081845; correlate with the irregular log backup pattern"
+    ],
+    [
+     "Technical User Passwords / SLD Supplier",
+     "Alert 62: 7x; alert 135: 175x (SYSTEMDB, priority 3)",
+     "Disable password lifetime check for technical users, Note 2082406; alert 135 is new"
+    ],
+    [
+     "HANA HotNews",
+     "SAP Note 3794443",
+     "NEW — Standard table partitioning can introduce duplicate records or table inconsistencies; parameter mvcc_data_max_rows_per_chunk not set as recommended"
+    ],
+    [
+     "System Replication Setup",
+     "SITE1 (exmp-hdb-p1) → SITE2 (exmp-hdb-p2, SYNC) & SITE3 (exmp-hdb-q3, ASYNC), logreplay mode",
+     "Full sync disabled"
+    ],
+    [
+     "Audit Policies",
+     "HDB tenant: 33 activated; HDB-SYSTEMDB: 0 customer-defined",
+     "Define SYSTEMDB policies per HANA Security Guide"
+    ],
+    [
+     "Parameters",
+     "28 recommended-parameter deviations + workload parameter parallel_merge_threads (0, recommended 5-10)",
+     "Note 2600030; EWA yellow for HDB and SYSTEMDB"
+    ],
+    [
+     "Table/Index Count",
+     "151,798 column tables / 17,662 row tables",
+     "Indexes: 159,074 column / 903 row"
+    ],
+    [
+     "Largest Row Store Table",
+     "ARFCSDATA — 48.4 GB (24.5M records) / Note 375566",
+     "tRFC housekeeping — up from 46.8 GB; APQD 13.1 GB newly flagged (Notes 36781, 18307)"
+    ],
+    [
+     "Largest Column Store Table (disk)",
+     "SOFFCONT1 — 239.9 GB (mostly LOB)",
+     "Content repository — review retention policy; up from 208.3 GB (+31.6 GB); also SRMCONT_MN 66.8 GB, CDPOS 72.0 GB"
+    ],
+    [
+     "Largest Record Count Tables (>1B rows)",
+     "CDPOS (1.14B), ACDOCA (1.015B — newly above 1B)",
+     "Consider partitioning — Note 1650394 / 2044468; at ~0.4-0.5%/week growth ~2.7-2.8 years to the 2B limit (indicative) — and see HotNews 3794443 before partitioning"
+    ],
+    [
+     "DB Growth",
+     "41.27 GB / month; total 959.80 GB",
+     "Growth accelerated vs. 26.68 GB/month in Sept (total was 910.97 GB)"
+    ],
+    [
+     "Thread / SQL load",
+     "Indexserver: 21.4 avg / 40.0 max active threads; MVCC versions avg 28,449 (max 154,236)",
+     "No CPU or memory-server bottleneck detected"
+    ],
+    [
+     "License Status",
+     "Valid, permanent (product limit 4,900)",
+     "OK"
+    ]
+   ],
+   "hidden": true
+  },
+  {
+   "name": "Security Detail",
+   "title": "Security Findings — Detail by Check",
+   "columns": [
+    "Check",
+    "System/Client",
+    "Finding",
+    "Recommendation"
+   ],
+   "widths": [
+    40.0,
+    18.0,
+    45.0,
+    48.0
+   ],
+   "rows": [
+    [
+     "SAP_ALL (Super User)",
+     "Client 000",
+     "9 of 15 valid users hold SAP_ALL (was 10)",
+     "Expected in 000 (system client) but still review necessity (EWA RED)"
+    ],
+    [
+     "SAP_ALL (Super User)",
+     "Client 800 (Production)",
+     "8 of 1,589 valid users (was 10 of 1,458)",
+     "Reduce to emergency-access model; document business justification for each"
+    ],
+    [
+     "Debug/Replace (S_DEVELOP ACTVT=02, OBJTYPE=DEBUG)",
+     "Client 000",
+     "1 of 15 users",
+     "Review necessity"
+    ],
+    [
+     "Debug/Replace (S_DEVELOP ACTVT=02, OBJTYPE=DEBUG)",
+     "Client 800 (Production)",
+     "6 of 1,589 users (down from 7)",
+     "Restrict to controlled firefighter access; remove from standard roles"
+    ],
+    [
+     "Broad Table Access (SE16/SE16N/SE17/SM30/SM31 + S_TABU_DIS *)",
+     "Client 000",
+     "1 of 15 users",
+     "Review necessity"
+    ],
+    [
+     "Broad Table Access (SE16/SE16N/SE17/SM30/SM31 + S_TABU_DIS *)",
+     "Client 800 (Production)",
+     "93 of 1,589 users (unchanged: 93)",
+     "Restrict via authorization groups (DICBERCLS); review via SUIM usage report"
+    ],
+    [
+     "HANA Audit Trail — HDB",
+     "HDB",
+     "Rated GREEN — 33 audit policies activated on the tenant",
+     "Keep; review policy coverage periodically"
+    ],
+    [
+     "HANA Audit Trail — HDB-SYSTEMDB",
+     "HDB-SYSTEMDB",
+     "Rated YELLOW — no customer-defined audit policies enabled",
+     "Define policies for privileged/sensitive operations"
+    ],
+    [
+     "Default Passwords of Standard Users",
+     "ABC (all clients)",
+     "Rated YELLOW — standard users found with default passwords (RSUSR003); TMSADM exists in a client other than 000 (new alert)",
+     "Change SAP*, SAPCPIC, TMSADM default passwords in every client; remove TMSADM outside 000 (Notes 1749142, 1414256)"
+    ],
+    [
+     "Age of Support Packages (Security Note Coverage)",
+     "ABC",
+     "RED — S4CORE/SAP_ABA/SAP_BASIS/SAP_GWFND last SP import 22.04.2023 (43 months, was 41); final assembly 50-56 months",
+     "Not within SAP's 24-month Security Note coverage window — schedule SP stack upgrade"
+    ],
+    [
+     "HANA Critical Revisions / HotNews",
+     "HDB",
+     "RED — HotNews 3794443 exists for revision 2.00.089.03 (table partitioning duplicates/inconsistencies)",
+     "Follow the note; apply recommended parameter/mitigation"
+    ],
+    [
+     "Technical User Password Expiry",
+     "HDB-SYSTEMDB",
+     "Alert 62 raised 7x (priority 3) in SYSTEMDB",
+     "Disable password lifetime check for confirmed technical users — Note 2082406"
+    ],
+    [
+     "ABAP Password Policy",
+     "ABC",
+     "Rated GREEN",
+     "Keep validating against SAP-recommended password parameters"
+    ],
+    [
+     "RFC Gateway Security",
+     "ABC",
+     "Rated GREEN",
+     "Keep secinfo/reginfo ACL files maintained per Notes 1408081/1414256"
+    ],
+    [
+     "Message Server Security",
+     "ABC",
+     "Rated GREEN",
+     "Keep ms_acl_info configured and message server ports protected"
+    ],
+    [
+     "Automatic login user SAP* / Password protection in DB connections",
+     "ABC",
+     "Both rated GREEN",
+     "No action"
+    ],
+    [
+     "Critical authorizations — very limited use in production",
+     "ABC",
+     "Rated GREEN; Security risk due to ODP usage: not rated (gray)",
+     "No action"
+    ],
+    [
+     "HANA Maintenance Revision Status",
+     "HDB / HDB-SYSTEMDB",
+     "2.00.089.03 — in maintenance, rated GREEN (was 2.00.082.00)",
+     "Track newer 2.00.089.x revisions and HotNews"
+    ],
+    [
+     "Unused active ICF services",
+     "ABC",
+     "1,404 activated but unusable ICF services (EWA: 25.4% usable; warning below 95%)",
+     "Deactivate unused SAPUI5 ICF services — KBA 3261151"
+    ]
+   ],
+   "hidden": true
+  },
+  {
+   "name": "EWM & RFC Detail",
+   "title": "Extended Warehouse Management & RFC/qRFC — Detail",
+   "columns": [
+    "Area",
+    "Finding",
+    "Volume",
+    "Recommendation"
+   ],
+   "widths": [
+    30.0,
+    46.0,
+    32.0,
+    40.0
+   ],
+   "rows": [
+    [
+     "qRFC Outbound — Error Status",
+     "CPICERR: RFC connection open errors",
+     "2 queues (PRABCCLNT800..., WMQFCNS1...), 7 entries",
+     "Fix RFC destination connectivity; Note 378903"
+    ],
+    [
+     "qRFC Outbound — Error Status",
+     "SYSFAIL: Name/password incorrect",
+     "10 queues (27 entries), oldest from 27.07.2023",
+     "Correct stored credentials; reprocess via SMQ1"
+    ],
+    [
+     "qRFC Outbound — Unprocessed (READY)",
+     "Long-pending outbound queue entries",
+     "29 queues (158 entries), oldest from 27.07.2023",
+     "Investigate and clear per business relevance; Note 378903"
+    ],
+    [
+     "qRFC Inbound — Error Status",
+     "SYSFAIL: user locked, serial-number/status mismatches, \"warehouse request exists\"",
+     "25 queues (76 entries), 2020-2026 (new entries 13-16.10.2026)",
+     "Resolve underlying master data/authorization issues; reprocess via SMQ2"
+    ],
+    [
+     "Cross-application BPA — bgRFC / tRFC / IDoc",
+     "bgRFC inbound errors and backlog; tRFC errors; inbound IDocs in error",
+     "bgRFC 117,554 errors / 59,113 backlog; tRFC 5,886; IDocs 3,464; qRFC 8 in / 10 out",
+     "Analyze with SBGRFCMON, SM58, WE02/BD87; clear after business sign-off"
+    ],
+    [
+     "EWM SMQ3 Saved Queues >365 days",
+     "Stale saved queues from 2020 onward",
+     "7,958 total (up from 7,839)",
+     "Evaluate relevance per Note 2558561; restore & reprocess or delete"
+    ],
+    [
+     "EWM PPF — Unprocessed >2 weeks",
+     "ZX_DELIVERYNOTE (delivery note output, /SCWM/FDO_01) not processed",
+     "50 entries listed, 20.08-01.10.2026",
+     "Clear stuck selections in SPPFP; Note 1423066"
+    ],
+    [
+     "EWM PPF — Failed (status 2) >2 weeks",
+     "HU label/print and PRD_CMMN messaging actions in error",
+     "50 listed: REPACK_HU_PRINT 17, PARTIAL_UD 15, LABEL_AUTO 6, PICK_HU_STO_OUT 4, GR_INB 3, PICK_HU 3, PRD_SEND 2",
+     "Root-cause via SPPFP error logs; likely print server/config issue"
+    ],
+    [
+     "EWM Recommended Background Jobs",
+     "12 jobs not scheduled (e.g., /LIME/COLLECTION_DELETE, /SCWM/R_REORG_HU_WO_PRINT)",
+     "12 of required set missing — unchanged",
+     "Schedule per EWM Operations Guide; Note 3418083"
+    ],
+    [
+     "EWM Archiving",
+     "No archiving configured for any recommended object",
+     "23 objects (DLV_INB, DLV_OUT, WME_HU, WME_TO, etc.)",
+     "Set up archiving starting with highest-volume objects; Notes 1402220, 1830178, 2712863"
+    ],
+    [
+     "EWM Support Package Currency",
+     "S4CORE 106 on SP02; latest available SP10",
+     "8 SPs behind (EWA: >5)",
+     "Plan SP stack upgrade; Note 432027"
+    ],
+    [
+     "EWM Missing Notes — Delivery Processing",
+     "6 notes not downloaded, tied to document-flow inconsistencies",
+     "3300534, 3311529, 3321269, 3157937, 3153491, 3233459",
+     "Implement via SNOTE prioritizing active processes"
+    ],
+    [
+     "EWM Missing Notes — Warehouse Order / Side effects",
+     "1 warehouse-order note and 1 side-effect solving note not downloaded",
+     "3558727 (enqueue-lock loss) / 3249535 (material read, Medium)",
+     "Implement via SNOTE; SP02 of S4CORE 106 does not include them"
+    ],
+    [
+     "Overdue Outbound Deliveries (>1 year old)",
+     "Open outbound delivery items created >1 year ago",
+     "17 items (Sept: 16; first listed SG11 from 19.12.2024, DES1 from 09.10.2025)",
+     "Review status; complete or archive per business relevance"
+    ],
+    [
+     "Small leftover quantities (<0.001) on bins",
+     "Tiny stocks block put-away on affected bins",
+     "7 bins (VNS1 x6, MYS1 x1)",
+     "Remove via EWM Check Monitor, Note 3138922"
+    ],
+    [
+     "EWM Workload (/SCWM/RFUI)",
+     "RF UI response times",
+     "167,109 dialog steps at 153 ms and 472,586 HTTP steps at 495 ms (week)",
+     "No action — response times acceptable"
+    ],
+    [
+     "LIME Inconsistency Check",
+     "/LIME/NTREE HotNews Note check",
+     "Not relevant (release not affected)",
+     "No action required"
+    ]
+   ],
+   "hidden": false
+  },
+  {
+   "name": "ABAP Dumps Detail",
+   "title": "Program Errors (ABAP Dumps) — 411 Total, 12.10-19.10.2026 (was 486)",
+   "columns": [
+    "Runtime Error",
+    "Count (period)",
+    "Likely Cause / Category",
+    "Suggested Action",
+    "Count (Sept 07-14.09)"
+   ],
+   "widths": [
+    38.0,
+    16.0,
+    45.0,
+    48.0,
+    20.0
+   ],
+   "rows": [
+    [
+     "UNCAUGHT_EXCEPTION",
+     169,
+     "Unhandled exception in custom or standard code",
+     "Highest priority — analyze ST22 call stack, identify recurring program/class",
+     206
+    ],
+    [
+     "TSV_TNEW_PAGE_ALLOC_FAILED",
+     59,
+     "Internal memory (extended memory / heap) exhausted for a work process",
+     "Review abap/heap_area, ztta/roll_extension parameters and memory-intensive reports",
+     65
+    ],
+    [
+     "RAISE_SHORTDUMP",
+     39,
+     "Explicit short dump raised by application logic",
+     "Review triggering program logic and business rule that forced the dump (up from 14)",
+     14
+    ],
+    [
+     "SESSIONMEM_QUOTA_WARNING",
+     27,
+     "Session memory quota exceeded — often large internal tables/ALV",
+     "Identify the reporting/session pattern causing large memory use",
+     31
+    ],
+    [
+     "RAISE_EXCEPTION",
+     20,
+     "Explicit RAISE without handler",
+     "Review calling program logic and exception handling",
+     18
+    ],
+    [
+     "SAPSQL_DATA_LOSS",
+     18,
+     "Data truncation during SQL fetch (field too short)",
+     "Check field length mismatches in custom SELECTs (up from 10)",
+     10
+    ],
+    [
+     "CALL_FUNCTION_SEND_ERROR",
+     15,
+     "RFC/function call communication failure",
+     "Correlate with qRFC/RFC destination errors identified separately",
+     14
+    ],
+    [
+     "LIST_TOO_MANY_LPROS",
+     11,
+     "ABAP list processing exceeded internal limits",
+     "Likely a report generating excessively large output lists — review selection criteria",
+     14
+    ],
+    [
+     "CONVT_NO_NUMBER",
+     10,
+     "Non-numeric value passed to a numeric conversion",
+     "Check input validation in the failing program/transaction",
+     19
+    ],
+    [
+     "SYSTEM_NO_ROLL",
+     9,
+     "Roll area exhausted for user context",
+     "Review rdisp/ROLL_MAXFS and concurrent session/memory load",
+     13
+    ],
+    [
+     "BCD_OVERFLOW",
+     9,
+     "Packed decimal arithmetic overflow",
+     "Review calculation logic for oversized results",
+     8
+    ],
+    [
+     "SQL_CAUGHT_RABAX",
+     4,
+     "Database exception (RABAX) caught during SQL processing",
+     "Review the underlying DB error via ST22 long text; correlate with HANA alerts",
+     15
+    ],
+    [
+     "MESSAGE_TYPE_X",
+     4,
+     "Program terminated with message type X",
+     "Analyze message in ST22; typically a consistency/check failure",
+     "≤2 (in \"Other\")"
+    ],
+    [
+     "DBSQL_SQL_DEADLOCK_DETECTED",
+     3,
+     "Database deadlock during SQL execution",
+     "Cross-reference with HANA deadlock alert (9 occurrences) — same root cause likely",
+     3
+    ],
+    [
+     "CONV_EXIT_FIELD_TOO_SHORT",
+     3,
+     "Conversion exit output exceeds target field length",
+     "Check custom conversion routines",
+     3
+    ],
+    [
+     "Other types (8 types, ≤2 each): PXA_NO_FREE_SPACE (2), LOAD_PROGRAM_TABLE_MISMATCH (2), OBJECTS_OBJREF_NOT_ASSIGNED_NO (2), LOAD_PROGRAM_LOST, TSV_TNEW_BLOCKS_NO_ROLL_MEMORY, SYSTEM_SHM_AREA_DETACHED, OBJECTS_OBJREF_NOT_ASSIGNED, MEMORY_NO_MORE_PAGING",
+     11,
+     "Program-buffer (PXA) and program-load errors on 12.10.2026 are consistent with post-restart effects after the kernel/HANA uplift; SYSTEM_SHM_AREA_DETACHED fell from 37 to 1",
+     "If PXA_NO_FREE_SPACE recurs, check abap/pxa sizing; investigate others individually via ST22",
+     13
+    ],
+    [
+     "Daily distribution (12-19.10): 62 / 96 / 74 / 49 / 53 / 28 / 30 / 19",
+     411,
+     "Peak on Tue 13.10 (96); declining through the week (19.10 is a partial day)",
+     "Correlate peaks with batch/job schedule and the 12-13.10 post-uplift period",
+     486
+    ]
+   ],
+   "hidden": false
+  },
+  {
+   "name": "Business Process Backlog",
+   "title": "Business Key Figures — Overdue/Backlog Documents (figures identical to the previous EWA cycle — BPA data date 12.10.2026, collection frequency 3 months)",
+   "columns": [
+    "Business Area",
+    "KPI",
+    "Finding",
+    "Rating Basis"
+   ],
+   "widths": [
+    18.0,
+    42.0,
+    45.0,
+    32.0
+   ],
+   "rows": [
+    [
+     "Finance",
+     "Overdue vendor payments (K20)",
+     "5,317 open AP items overdue (616 <3mo, 62 >12mo)",
+     "GREEN<100 / RED>1000 (absolute)"
+    ],
+    [
+     "Finance",
+     "Blocked FI-AP items for payment (K21)",
+     "1 blocked item",
+     "GREEN<10 / RED>100"
+    ],
+    [
+     "Finance",
+     "Overdue customer payments (K15)",
+     "4,549 open AR items overdue (1,755 <3mo, 17 >12mo)",
+     "GREEN<100 / RED>1000"
+    ],
+    [
+     "Finance",
+     "Invoice item to clearing lead time (K18)",
+     "107 days average lead time",
+     "GREEN<30 / RED>60 days"
+    ],
+    [
+     "Order to Cash",
+     "Overdue outbound deliveries (K11)",
+     "3,228 overdue (143 <3mo, 2,136 >12mo)",
+     "Based on 381/week created"
+    ],
+    [
+     "Order to Cash",
+     "Deliveries with overdue invoices (K12)",
+     "155 deliveries (10 <3mo, 125 >12mo)",
+     "GREEN<100 / RED>1000"
+    ],
+    [
+     "Order to Cash",
+     "Orders not billed (K06)",
+     "364 open sales orders (27 <3mo, 198 >12mo)",
+     "GREEN<10 / RED>100"
+    ],
+    [
+     "Order to Cash",
+     "Orders billed but not delivered (K07)",
+     "228 orders (7 <3mo, 209 >12mo)",
+     "GREEN<1 / RED>10"
+    ],
+    [
+     "Order to Cash",
+     "Invoices not posted to FI (K14)",
+     "44 invoices (2 <3mo, 33 >12mo)",
+     "GREEN<10 / RED>100"
+    ],
+    [
+     "Order to Cash",
+     "Overdue sales order schedule lines (K04)",
+     "672 items (15 <3mo, 316 >12mo)",
+     "Based on 102/week created"
+    ],
+    [
+     "Procure to Pay",
+     "Overdue inbound deliveries (K29)",
+     "3,931 (46 <3mo, 2,107 >12mo)",
+     "Based on weekly creation rate"
+    ],
+    [
+     "Procure to Pay",
+     "Overdue PO items (K28)",
+     "6,999 items (210 <3mo, 633 >12mo)",
+     "Based on weekly creation rate"
+    ],
+    [
+     "Procure to Pay",
+     "PO items without final invoice indicator (K33)",
+     "1,643 items (62 <3mo, 1,398 >12mo)",
+     "GREEN<100 / RED>1000"
+    ],
+    [
+     "Procure to Pay",
+     "Overdue purchase requisition items (K27)",
+     "2,255 items (89 <3mo, 1,739 >12mo)",
+     "Based on 509,670/week created"
+    ],
+    [
+     "Procure to Pay",
+     "Blocked vendor invoices for payment (K30)",
+     "71,774 items (3,082 <3mo, 47,054 >12mo)",
+     "GREEN<100 / RED>1000 — HIGHEST VOLUME FINDING"
+    ],
+    [
+     "Plan to Produce",
+     "Failed costing — production orders (K48)",
+     "35,149 failed cost postings (82 <3mo, 35,067 >12mo)",
+     "GREEN<10 / RED>100"
+    ],
+    [
+     "Plan to Produce",
+     "Planned orders with past opening date (K44)",
+     "265 orders",
+     "Based on weekly creation rate"
+    ],
+    [
+     "Plan to Produce",
+     "Production orders overdue for release (K45)",
+     "3,604 orders (158 <3mo, 21 >12mo)",
+     "GREEN<10 / RED>100"
+    ],
+    [
+     "Plan to Produce",
+     "Production orders overdue for delivery completed (K50)",
+     "232 orders",
+     "Based on weekly creation rate"
+    ],
+    [
+     "Plan to Produce",
+     "Production orders overdue for deletion indicator (K46)",
+     "252,072 orders (18,038 <3mo, 175,947 >12mo)",
+     "GREEN<20,000 / RED>100,000"
+    ],
+    [
+     "Plan to Produce",
+     "Production orders released w/o first confirmation (K49)",
+     "1,660 orders (6 <3mo, 0 >12mo)",
+     "Based on weekly creation rate"
+    ],
+    [
+     "Plant Maintenance",
+     "Overdue notifications (K67)",
+     "9 notifications (all >12mo)",
+     "Based on weekly creation rate"
+    ],
+    [
+     "Plant Maintenance",
+     "Work orders in 'created' phase >30 days (K68)",
+     "14,096 orders (2,041 <3mo, 3,817 >12mo)",
+     "Based on weekly creation rate"
+    ],
+    [
+     "Plant Maintenance",
+     "Work orders in 'released' phase >60 days (K69)",
+     "2,441 orders (296 <3mo, 1,005 >12mo)",
+     "Based on weekly creation rate"
+    ],
+    [
+     "Replenishment",
+     "Overdue STO items w/o outbound delivery (K35)",
+     "6 items",
+     "Based on weekly creation rate"
+    ],
+    [
+     "Replenishment",
+     "Overdue STO schedule lines (K34)",
+     "2,243 lines (132 <3mo, 4 >12mo)",
+     "Based on weekly creation rate"
+    ],
+    [
+     "Cross-Application BPA — Interfaces / Jobs / Consistency (12.10-18.10.2026)",
+     "",
+     "",
+     ""
+    ],
+    [
+     "Jobs",
+     "Canceled background jobs",
+     "10 canceled on the peak day",
+     "GREEN"
+    ],
+    [
+     "Interfaces",
+     "Erroneous IDocs (inbound)",
+     "3,464 erroneous inbound IDocs (684 processed)",
+     "RED"
+    ],
+    [
+     "Interfaces",
+     "Erroneous / backlog tRFC (outbound)",
+     "5,886 errors; 5,886 in backlog",
+     "RED"
+    ],
+    [
+     "Interfaces",
+     "Erroneous / backlog bgRFC (inbound)",
+     "117,554 errors; 59,113 in backlog",
+     "RED"
+    ],
+    [
+     "Interfaces",
+     "Erroneous qRFC (inbound / outbound)",
+     "8 inbound / 10 outbound errors; no backlog",
+     "YELLOW"
+    ],
+    [
+     "Interfaces",
+     "Workflows in error",
+     "135 errors",
+     "YELLOW"
+    ],
+    [
+     "Interfaces",
+     "Batch input sessions",
+     "947 with errors; 1,129 in backlog (42 processed)",
+     "RED"
+    ],
+    [
+     "Interfaces",
+     "Outbound IDocs / PI messages / outbound bgRFC",
+     "0 errors, 0 backlog (796 outbound IDocs processed)",
+     "GREEN"
+    ],
+    [
+     "Data Consistency",
+     "Errors in update task",
+     "0",
+     "GREEN"
+    ],
+    [
+     "Data Consistency",
+     "Consistency check scheduling verification",
+     "Not all variants of the recommended data consistency reports have been executed",
+     "YELLOW"
+    ]
+   ],
+   "hidden": true
+  }
+ ],
+ "previous": {
+  "short_label": "Sept",
+  "period": "07.09 – 13.09.2026",
+  "rows": [
+   {
+    "indicator": "Overall EWA rating",
+    "previous": "RED",
+    "current": "RED",
+    "trend": "Unchanged",
+    "comment": "Two red drivers now: log backup/recovery and new HANA HotNews 3794443"
+   },
+   {
+    "indicator": "SAP kernel",
+    "previous": "789 PL426 (13 months)",
+    "current": "793 PL400 (6 months)",
+    "trend": "Improved",
+    "comment": "Kernel uplift to 793 completed; EWA rates kernel up to date"
+   },
+   {
+    "indicator": "HANA revision",
+    "previous": "2.00.082.00",
+    "current": "2.00.089.03",
+    "trend": "Improved",
+    "comment": "Upgraded 11.10.2026; HotNews 3794443 now applies"
+   },
+   {
+    "indicator": "OS on HANA host",
+    "previous": "SLES 15 SP3",
+    "current": "SLES 15 SP7",
+    "trend": "Improved",
+    "comment": "SLES 15 EoS 31.07.2028 (LTSS to 2031)"
+   },
+   {
+    "indicator": "Avg dialog response",
+    "previous": "335 ms",
+    "current": "387 ms",
+    "trend": "Slightly worse",
+    "comment": "Still far below the 1,000 ms guideline; DB request time 73 → 87 ms"
+   },
+   {
+    "indicator": "Max CPU on DB server",
+    "previous": "47%",
+    "current": "28%",
+    "trend": "Improved",
+    "comment": "No CPU bottleneck"
+   },
+   {
+    "indicator": "ABAP dumps (period)",
+    "previous": "486",
+    "current": "411",
+    "trend": "Improved",
+    "comment": "SYSTEM_SHM_AREA_DETACHED 37 → 1; RAISE_SHORTDUMP 14 → 39"
+   },
+   {
+    "indicator": "HANA DATA volume used",
+    "previous": "80.5% (1,080.98 GB)",
+    "current": "82.2% (1,103.68 GB)",
+    "trend": "Worse",
+    "comment": "Above 80% guideline; +22.7 GB in 5 weeks"
+   },
+   {
+    "indicator": "HANA LOG volume used",
+    "previous": "9.6%",
+    "current": "36.0%",
+    "trend": "Worse",
+    "comment": "Still healthy; monitor with log backup irregularity"
+   },
+   {
+    "indicator": "DB size / growth per month",
+    "previous": "910.97 GB / 26.68 GB",
+    "current": "959.80 GB / 41.27 GB",
+    "trend": "Worse",
+    "comment": "SOFFCONT1 +31.6 GB"
+   },
+   {
+    "indicator": "Indexserver memory vs eff. limit",
+    "previous": "675 / 934 GB (72.3%)",
+    "current": "688 / 956 GB (72.0%)",
+    "trend": "Unchanged",
+    "comment": "Tables 54.2% of global limit (>50%)"
+   },
+   {
+    "indicator": "SAP_ALL users client 800",
+    "previous": "10 (of 1,458)",
+    "current": "8 (of 1,589)",
+    "trend": "Improved",
+    "comment": "Client 000: 10 → 9"
+   },
+   {
+    "indicator": "Debug/replace users client 800",
+    "previous": "7",
+    "current": "6",
+    "trend": "Improved",
+    "comment": ""
+   },
+   {
+    "indicator": "Broad table access client 800",
+    "previous": "93",
+    "current": "93",
+    "trend": "Unchanged",
+    "comment": ""
+   },
+   {
+    "indicator": "SP import age (S4CORE etc.)",
+    "previous": "41 months",
+    "current": "43 months",
+    "trend": "Worse",
+    "comment": "Mainstream maintenance ends 31.12.2026"
+   },
+   {
+    "indicator": "HANA replication connection closed",
+    "previous": "1x",
+    "current": "3x",
+    "trend": "Worse",
+    "comment": "Alert 78, priority 4"
+   },
+   {
+    "indicator": "Delta merge failures",
+    "previous": "91x",
+    "current": "52x",
+    "trend": "Improved",
+    "comment": ""
+   },
+   {
+    "indicator": "Deadlocks (HANA)",
+    "previous": "7x",
+    "current": "9x",
+    "trend": "Worse",
+    "comment": ""
+   },
+   {
+    "indicator": "SMQ3 queues >365 days",
+    "previous": "7,839",
+    "current": "7,958",
+    "trend": "Worse",
+    "comment": ""
+   },
+   {
+    "indicator": "Overdue outbound deliveries >1 year",
+    "previous": "16",
+    "current": "17",
+    "trend": "Slightly worse",
+    "comment": ""
+   },
+   {
+    "indicator": "Number range RK_BELEG used",
+    "previous": "79.30%",
+    "current": "81.14%",
+    "trend": "Worse",
+    "comment": "~356,700 numbers/week"
+   },
+   {
+    "indicator": "Overtaker transports (week)",
+    "previous": "160",
+    "current": "157",
+    "trend": "Unchanged",
+    "comment": "Transports with <1 day transition: 25 → 0"
+   },
+   {
+    "indicator": "Active users / Fiori users",
+    "previous": "1,079 / 1,121",
+    "current": "1,201 / 1,275",
+    "trend": "Increased",
+    "comment": ""
+   },
+   {
+    "indicator": "Large tables (ARFCSDATA / BALDAT)",
+    "previous": "46.8 / 36.3 GB",
+    "current": "48.4 / 39.3 GB",
+    "trend": "Worse",
+    "comment": "APQD 13.1 GB newly flagged"
+   }
+  ],
+  "closed": [
+   "SAP kernel patch level not current (13 months old) — now 793 PL400, 6 months, rated up to date",
+   "Transport requests with <1 day dev-to-production transition time (25 in Sept) — 0 this week",
+   "HANA technical user password alert 62 no longer raised for the HDB tenant (still 7x in SYSTEMDB)"
+  ]
+ },
+ "scores": [
+  {
+   "area": "Security",
+   "score": 20
+  },
+  {
+   "area": "Performance",
+   "score": 60
+  },
+  {
+   "area": "Capacity",
+   "score": 40
+  },
+  {
+   "area": "Availability",
+   "score": 100
+  },
+  {
+   "area": "Operations",
+   "score": 30
+  },
+  {
+   "area": "Maintenance",
+   "score": 25
+  }
+ ],
+ "snapshot": [
+  {
+   "area": "System Availability",
+   "status": "Good",
+   "comment": "100% uptime — SLA achieved"
+  },
+  {
+   "area": "User Performance",
+   "status": "Watch",
+   "comment": "387ms avg dialog; 411 ABAP dumps in period (down from 486)"
+  },
+  {
+   "area": "Backup & Recovery",
+   "status": "CRITICAL",
+   "comment": "Log backups irregular again (81 vs ~769/day), 1 failure (17 Oct); HANA HotNews"
+  },
+  {
+   "area": "Security & Auth",
+   "status": "CRITICAL",
+   "comment": "8 users SAP_ALL, 6 debug, 93 broad table access (Client 800)"
+  },
+  {
+   "area": "Database Capacity",
+   "status": "Warning",
+   "comment": "HANA DATA 82.2% used (>80%); +41.27 GB/month growth; LOG now 36.0%"
+  },
+  {
+   "area": "Software Currency",
+   "status": "CRITICAL",
+   "comment": "SP stack 43 months old; maint. ends 31 Dec 2026 (kernel, HANA, OS now current)"
+  },
+  {
+   "area": "Warehouse (EWM)",
+   "status": "Warning",
+   "comment": "17 overdue deliveries (over 1yr old); 7,958 stale SMQ3 queues"
+  },
+  {
+   "area": "Business Process KPIs",
+   "status": "Warning",
+   "comment": "117,554 bgRFC errors (59,113 backlog); 71,774 blocked vendor invoices"
+  }
+ ],
+ "top_risks": [
+  {
+   "severity": "CRITICAL",
+   "title": "HANA log backups irregular again + new HotNews 3794443 — RED drivers",
+   "detail": "15 Oct: 81 log backups vs ~769/day and 1 failure on 17 Oct (same Thu/Sat pattern as Sept). HotNews 3794443: partitioning can create duplicate records."
+  },
+  {
+   "severity": "CRITICAL",
+   "title": "8 users hold SAP_ALL; 6 hold debug access in production (Client 800)",
+   "detail": "Down from 10 / 7 but still unrestricted access; 93 users keep broad table access. SOX/audit exposure; SYSTEMDB has no audit policies."
+  },
+  {
+   "severity": "CRITICAL",
+   "title": "Mainstream maintenance ends 31.12.2026; SP stack 43 months old",
+   "detail": "Security Note coverage lost after Dec 2026 — under 2.5 months left. Kernel, HANA and OS are now current, but S4CORE is still SP02 (8 SPs behind)."
+  },
+  {
+   "severity": "HIGH",
+   "title": "ABAP dumps down to 411 (from 486) — still ~8x SAP’s <50 threshold",
+   "detail": "UNCAUGHT_EXCEPTION 169 of 411; TSV_TNEW_PAGE_ALLOC_FAILED 59; RAISE_SHORTDUMP 39."
+  }
+ ],
+ "kpis": [
+  {
+   "value": "100%",
+   "label": "AVAILABILITY",
+   "target": "Target: >99.9%",
+   "status": "good"
+  },
+  {
+   "value": "387ms",
+   "label": "AVG DIALOG RESPONSE",
+   "target": "Target: <1,000ms",
+   "status": "good"
+  },
+  {
+   "value": "411",
+   "label": "ABAP DUMPS (7D)",
+   "target": "Target: <50",
+   "status": "crit"
+  },
+  {
+   "value": "82.2%",
+   "label": "HANA DATA VOL. USAGE",
+   "target": "Target: <80%",
+   "status": "warn"
+  },
+  {
+   "value": "28%",
+   "label": "CPU — DB SERVER",
+   "target": "Target: <80%",
+   "status": "good"
+  },
+  {
+   "value": "41.3 GB",
+   "label": "DB GROWTH (MONTH)",
+   "target": "Target: <15 GB",
+   "status": "warn"
+  },
+  {
+   "value": "1,201",
+   "label": "ACTIVE USERS",
+   "target": "Normal load",
+   "status": "info"
+  },
+  {
+   "value": "17",
+   "label": "OVERDUE DELIVERIES",
+   "target": "Target: 0",
+   "status": "warn"
+  }
+ ],
+ "banner": "CRITICAL: RED EWA persists — HANA log-backup irregularity plus a new HANA HotNews (3794443). Kernel/HANA/OS uplift is done, but DATA volume is now above 80% and S/4HANA 2021 maintenance ends in under 2.5 months.",
+ "kpi_note": "Vs. previous cycle (07–13 Sep): kernel, HANA (rev 089.03) and SLES now current; dumps fell (486 → 411), but DATA volume (80.5% → 82.2%) and DB growth (26.7 → 41.3 GB/mo) worsened.",
+ "kpi_table": [
+  {
+   "kpi": "Availability (%)",
+   "value": "100%",
+   "threshold": ">99.9%",
+   "status": "Good"
+  },
+  {
+   "kpi": "Avg Dialog Response (ms)",
+   "value": "387",
+   "threshold": "<1,000",
+   "status": "Good"
+  },
+  {
+   "kpi": "Peak Dialog Response (ms)",
+   "value": "470",
+   "threshold": "<1,000",
+   "status": "Good"
+  },
+  {
+   "kpi": "DB Request Time — Dialog (ms)",
+   "value": "87",
+   "threshold": "<100",
+   "status": "Good"
+  },
+  {
+   "kpi": "CPU — DB Server (%)",
+   "value": "28%",
+   "threshold": "<80%",
+   "status": "Good"
+  },
+  {
+   "kpi": "ABAP Dumps (period)",
+   "value": "411",
+   "threshold": "<50",
+   "status": "Critical"
+  },
+  {
+   "kpi": "HANA DATA Volume Usage",
+   "value": "82.2%",
+   "threshold": "<80%",
+   "status": "Warning"
+  },
+  {
+   "kpi": "HANA LOG Volume Usage",
+   "value": "36.0%",
+   "threshold": "<80%",
+   "status": "Good"
+  },
+  {
+   "kpi": "DB Size / Growth",
+   "value": "959.80 GB / +41.27 GB/mo",
+   "threshold": "<15 GB/mo",
+   "status": "Warning"
+  },
+  {
+   "kpi": "Active Users (>400 steps/wk)",
+   "value": "1,201",
+   "threshold": "Normal load",
+   "status": "Info"
+  }
+ ],
+ "actions": {
+  "immediate": [
+   {
+    "text": "Fix recurring HANA log backup gaps; assess HotNews 3794443",
+    "owner": "Basis / HANA DBA"
+   },
+   {
+    "text": "Remove SAP_ALL from 8 & debug from 6 production users",
+    "owner": "Security Team"
+   },
+   {
+    "text": "APPROVE: S/4HANA & SP-stack upgrade roadmap (maint. ends 31.12.2026)",
+    "owner": "Management"
+   }
+  ],
+  "high": [
+   {
+    "text": "Apply SP stack update (43 months old); UI5/FES also end 31.12.2026",
+    "owner": "Basis Team"
+   },
+   {
+    "text": "Triage 411 ABAP dumps — UNCAUGHT_EXCEPTION top cause (169)",
+    "owner": "ABAP / Functional"
+   },
+   {
+    "text": "Expand HANA DATA volume (82.2%); housekeeping ARFCSDATA/BALDAT/APQD",
+    "owner": "Basis / Infra (Azure)"
+   }
+  ],
+  "medium": [
+   {
+    "text": "Define HANA audit policies (SYSTEMDB); fix default pwds & TMSADM",
+    "owner": "Basis / Security"
+   },
+   {
+    "text": "Clean 7,958 SMQ3 queues; fix PPF errors; set up EWM archiving",
+    "owner": "EWM Team"
+   },
+   {
+    "text": "Work bgRFC/tRFC backlog (59,113) and blocked invoices (71,774)",
+    "owner": "Basis / FI / MM / PP"
+   }
+  ]
+ },
+ "conclusion": "Critical Action Required — RED EarlyWatch Alert Report. The SAP S/4HANA production system ABC (Example Customer / EXMP landscape) remains in CRITICAL health (illustrative score 46/100, was 43) based on the EWA report for 12–18 Oct 2026. Two red alerts decide the rating: SAP HANA (HDB) log backups are irregular again (81 vs. ~769/day on 15 Oct, one failure on 17 Oct — the same Thursday/Saturday pattern as September) and a new HANA HotNews (SAP Note 3794443, table partitioning duplicates) applies to the freshly upgraded revision 2.00.089.03. Eight production users still hold SAP_ALL and six hold debug/replace rights in Client 800 (down from 10 and 7), and 93 keep broad table access. HANA DATA volume has crossed 80% (82.2% used; DB growth 41.3 GB/month, driven mainly by SOFFCONT1), and the Support Package stack is 43 months behind, with S/4HANA 2021, SAPUI5 1.96 and Fiori FES 2021 all leaving mainstream maintenance on 31 December 2026 — under 2.5 months away — so the upgrade roadmap needs a management decision now. On the positive side, the kernel (793), HANA (2.00.089.03) and SLES 15 SP7 uplift is complete, ABAP dumps fell to 411 (from 486), and availability stayed at 100%."
+}
