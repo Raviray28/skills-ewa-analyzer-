@@ -31,7 +31,7 @@ A complete working example is in `examples/example_findings.json` (customer data
  "landscape": "Example Landscape", "landscape_short": "ABC - SAP S/4HANA 2021 + HANA",
  "period": "12.10.2026 - 18.10.2026", "period_short": "12 Oct - 18 Oct 2026",
  "report_date": "19/10/2026", "month_label": "October 2026",
- "prepared_by": "Your Name, SAP Basis Consultant"}
+ "prepared_by": "Your Name, SAP Basis Consultant"}  (use the name the user gives you; if unknown, ask once, do not invent one)
 ```
 `system_id`, `period`, `report_date`, `prepared_by` are required. `ewa_meta.json` from the parser helps; confirm against the report.
 
