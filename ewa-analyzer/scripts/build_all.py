@@ -19,7 +19,7 @@ for mod, pkg in (("openpyxl", "openpyxl"), ("pptx", "python-pptx")):
 if missing:
     sys.exit("Missing Python packages: %s\nInstall with:  pip install %s" % (", ".join(missing), " ".join(missing)))
 
-from common import load_findings, FindingsError
+from common import load_findings, coverage_warnings, FindingsError
 import build_xlsx, build_pptx
 
 ap = argparse.ArgumentParser()
@@ -42,4 +42,6 @@ for it in d["action_items"]:
     counts[it["priority"]] = counts.get(it["priority"], 0) + 1
 print("Action items:", ", ".join("%s %d" % (k, counts.get(k, 0)) for k in ("Critical", "High", "Medium", "Low")))
 print("Detail sheets:", len(d.get("detail_sheets", [])), "| comparison sheet:", "yes" if d.get("previous") else "no (no previous analysis given)")
+for w in coverage_warnings(d):
+    print("COVERAGE WARNING:", w)
 print("Wrote:\n ", x, "\n ", p)

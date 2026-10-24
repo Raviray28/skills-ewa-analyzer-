@@ -22,8 +22,38 @@ def load_findings(path):
     return data
 
 
+def _fix_text(x):
+    """Repair dashes that turned into '?' when the file was written through a non-UTF-8 console."""
+    if isinstance(x, str):
+        x = re.sub(r"(?<=[0-9A-Za-z\.]) \? (?=[0-9A-Za-z])", " \u2013 ", x)
+        x = re.sub(r"^(RED|YELLOW|GREEN|CRITICAL|ATTENTION|HEALTHY) \? ", lambda m: m.group(1) + " \u2014 ", x)
+        return x
+    if isinstance(x, list):
+        return [_fix_text(i) for i in x]
+    if isinstance(x, dict):
+        return {k: _fix_text(v) for k, v in x.items()}
+    return x
+
+
+def coverage_warnings(d):
+    """Soft checks: tell the analyst when the analysis looks thinner than a full review."""
+    w = []
+    n = len(d.get("action_items", []))
+    if n < 15:
+        w.append("only %d action items. A full EWA review usually has 20 to 50: add one item per red or yellow check, "
+                 "and one per SAP Note, expiring support date, threshold breach or security finding." % n)
+    if not d.get("detail_sheets"):
+        w.append("no detail_sheets. Add one sheet per area that is red or yellow (HANA/database, security, "
+                 "RFC/queues, ABAP dumps, business process, system-specific areas).")
+    if any("?" in str(v) for v in (d.get("meta") or {}).values()):
+        w.append("a '?' in meta, probably a lost dash: write findings.json with a UTF-8 file tool, not a console command.")
+    return w
+
+
 def normalise(d):
     """Forgive capitalisation differences (CRITICAL, critical) in status and priority words."""
+    for k in list(d.keys()):
+        d[k] = _fix_text(d[k])
     for key in ("snapshot", "kpi_table"):
         for x in d.get(key, []) or []:
             if isinstance(x.get("status"), str):
