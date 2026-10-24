@@ -1,1 +1,6 @@
-
+*.DOC
+*.doc
+*.docx
+ewa_extract/
+outputs/
+__pycache__/
