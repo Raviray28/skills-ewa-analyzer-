@@ -43,6 +43,14 @@ For each [R] alert read its section; for each [Y] read the section if it affects
 
 Collect: the finding, the evidence (numbers, dates, SAP Notes), the business impact, the recommendation, a suggested owner.
 
+### Coverage rules (do not skip)
+A thin analysis is the most common failure. Work through the report like a checklist, not like a summary:
+1. Run `python scripts/section.py ewa_extract --list` and go through the headings area by area. Every heading marked [R] or [Y] needs at least one action item, or a written reason in the final message why it does not.
+2. One finding per action item. Do not merge a SAP Note, an expiring support date, a threshold breach, a failed job and a security finding into one row. A full EWA normally gives 20 to 50 items. If you have fewer than 15, you have merged or skipped too much: go back to the report.
+3. Cover every area that has a section in the report: HANA/database (backup, memory, disk, alerts, parameters, HotNews), security, performance, ABAP dumps, RFC/qRFC, transports, number ranges, upgrade and maintenance dates, capacity and growth, plus system-specific areas (for example EWM, BW, Gateway, Fiori).
+4. Write one detail sheet for each area that is red or yellow (at least HANA/database, security, ABAP dumps, and any business-process or system-specific area that has findings). A detail sheet is a table of metrics and values copied from the report with the threshold or note next to each.
+5. Medium and Low items count too: yellow checks, hygiene items and housekeeping belong in the register, so the management view and the technical view come from the same list.
+
 ## Step 4: previous analysis (optional)
 Ask the user once: "Do you have last cycle's findings file (the `*_findings.json` from the last run) or last cycle's EWA?" 
 - If a previous findings.json is given: build the `previous` block (see schema) by comparing KPIs, counts, versions and key detail values, 15 to 30 indicators. Mark trend as Improved, Worse, Slightly worse, Unchanged or Increased.
@@ -50,7 +58,7 @@ Ask the user once: "Do you have last cycle's findings file (the `*_findings.json
 - If neither is given: leave `previous` out. Do not guess a comparison. The workbook then has no comparison sheet.
 
 ## Step 5: write findings.json
-Follow `references/findings_schema.md` exactly (keys, limits, wording length). Order action items by priority, then by importance. Use `references/rubric.md` for priority, owner, scores and thresholds. Save as `findings.json` in the user's working folder.
+Follow `references/findings_schema.md` exactly (keys, limits, wording length). Order action items by priority, then by importance. Use `references/rubric.md` for priority, owner, scores and thresholds. Save as `findings.json` in the user's working folder. Write the file with the file-creation tool (UTF-8), never with a console command such as echo or Set-Content: a Windows console turns dashes and other symbols into "?".
 
 ## Step 6: build the files
 ```
@@ -60,7 +68,14 @@ If it reports problems with findings.json, fix them and rerun. If the pptx step 
 
 ## Step 7: check and hand over
 - Open the results (or render them) and check: counts on the Executive Summary match the action items; no text is cut off on the slides; every figure traces to the report.
-- Tell the user: where the files are; the overall rating and score; the top 3 findings; assumptions and inferences you made; anything you could not read; and that `outputs/*_findings.json` must be kept for next month's comparison.
+- If `build_all.py` prints a COVERAGE WARNING, go back to Step 3 and fix it before you hand over.
+- End your reply in the chat with this block, so the user never has to search for anything:
+  1. Overall rating and the six scores as a small table.
+  2. The top 3 to 4 risks, one line each.
+  3. Counts: action items by priority, detail sheets, comparison sheet yes/no.
+  4. The full paths of the two files in `outputs\` (the .xlsx and the .pptx).
+  5. Assumptions and inferences you made, and anything you did not read.
+  6. A reminder to keep `outputs/*_findings.json` for next month's comparison.
 - Do not claim the analysis is complete if sections were skipped. List what you did not read.
 
 ## Level 1: no Python available
